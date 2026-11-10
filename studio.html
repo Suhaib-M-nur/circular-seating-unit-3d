@@ -1,0 +1,707 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>وحدة جلوس دائرية — منظور ثلاثي الأبعاد</title>
+<meta name="description" content="منظور ثلاثي الأبعاد واقعي لوحدة جلوس دائرية مع حوض زراعي، بالمقاسات حسب المخطط.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --chrome:rgba(16,16,17,.62); --chrome-2:rgba(255,255,255,.10); --chrome-line:rgba(255,255,255,.12);
+  --ink:#f4f1ec; --ink-2:rgba(244,241,236,.68); --accent:#e9c46a; --on-accent:#1b1710;
+  --bg:#0c0c0d;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font-family:Tajawal,"Segoe UI",Tahoma,sans-serif;overflow:hidden;-webkit-tap-highlight-color:transparent;transition:background .4s}
+#stage{position:fixed;inset:0}
+#stage canvas{display:block;touch-action:none;outline:none}
+.glass{background:var(--chrome);border:1px solid var(--chrome-line);-webkit-backdrop-filter:blur(14px) saturate(1.2);backdrop-filter:blur(14px) saturate(1.2)}
+header{position:fixed;top:calc(env(safe-area-inset-top,0px) + 14px);right:16px;left:16px;display:flex;align-items:flex-start;justify-content:space-between;gap:12px;pointer-events:none}
+.title{border-radius:16px;padding:12px 16px 10px;pointer-events:auto;max-width:min(440px,100%)}
+.title h1{margin:0;font-size:18px;line-height:1.35;font-weight:700}
+.title p{margin:2px 0 0;font-size:13px;color:var(--ink-2)}
+.link{pointer-events:auto;flex:none;font:inherit;font-size:13.5px;font-weight:500;color:var(--ink);text-decoration:none;border-radius:12px;padding:9px 13px;white-space:nowrap}
+.link:hover{background:rgba(40,40,42,.75)}
+.dock{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom,0px) + 14px);display:flex;gap:8px;align-items:center;
+  border-radius:18px;padding:7px;max-width:calc(100vw - 32px);overflow-x:auto;scrollbar-width:none}
+.dock::-webkit-scrollbar{display:none}
+.seg{display:flex;gap:3px;background:var(--chrome-2);border-radius:13px;padding:3px;flex:none}
+.sep{width:1px;align-self:stretch;background:var(--chrome-line);flex:none}
+.dock button{font:inherit;font-size:14px;font-weight:500;color:var(--ink);background:transparent;border:0;border-radius:10px;padding:8px 12px;min-height:38px;white-space:nowrap;cursor:pointer;transition:background .2s,color .2s}
+.dock button:hover{background:rgba(255,255,255,.08)}
+.dock button[aria-pressed="true"]{background:var(--accent);color:var(--on-accent);font-weight:700}
+.dock button:focus-visible,.link:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.dock .solo{background:var(--chrome-2)}
+#hint{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom,0px) + 74px);font-size:12.5px;color:var(--ink-2);
+  background:rgba(16,16,17,.45);border-radius:999px;padding:5px 12px;pointer-events:none;transition:opacity .6s;white-space:nowrap}
+#loading{position:fixed;inset:0;display:grid;place-items:center;background:var(--bg);z-index:5;transition:opacity .6s}
+#loading div{display:flex;flex-direction:column;align-items:center;gap:14px;font-size:15px;color:var(--ink-2)}
+#loading i{width:34px;height:34px;border-radius:50%;border:3px solid rgba(255,255,255,.15);border-top-color:var(--accent);animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.tag{left:0;top:0;font-family:Tajawal,sans-serif;direction:rtl;pointer-events:none}
+.tag div{transform:translateY(-22px);font-size:13px;font-weight:700;line-height:1.25;color:#fff;background:rgba(18,18,20,.82);border:1px solid rgba(255,255,255,.18);
+  border-radius:9px;padding:5px 9px 4px;white-space:nowrap;box-shadow:0 4px 14px rgba(0,0,0,.25);position:relative}
+.tag div small{display:block;font-weight:400;font-size:11.5px;opacity:.75}
+.tag div::after{content:"";position:absolute;left:50%;bottom:-6px;margin-left:-5px;border:5px solid transparent;border-top-color:rgba(18,18,20,.82);border-bottom:0}
+.tag b{position:absolute;left:50%;top:50%;width:9px;height:9px;margin:-4.5px 0 0 -4.5px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 2px rgba(0,0,0,.35)}
+body.day{--bg:#ddd7cd}
+body.day #loading{color:#3a352f}
+@media (max-width:640px){
+  .title{padding:10px 13px 8px}.title h1{font-size:15.5px}.title p{font-size:12px}
+  .link{font-size:12.5px;padding:8px 10px}
+  .dock{left:12px;right:12px;transform:none;max-width:none;bottom:calc(env(safe-area-inset-bottom,0px) + 10px);flex-wrap:wrap;justify-content:center;gap:6px}
+  .dock .sep{display:none}
+  .dock{padding:6px}
+  .dock button{font-size:13px;padding:7px 8px;min-height:36px}
+  #hint{bottom:calc(env(safe-area-inset-bottom,0px) + 120px)}
+}
+@media (prefers-reduced-motion:reduce){#loading i{animation:none}}
+</style>
+<script type="importmap">
+{"imports":{
+  "three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+  "three/addons/":"https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+}}
+</script>
+</head>
+<body>
+<div id="stage"></div>
+<header>
+  <div class="title glass">
+    <h1>وحدة جلوس دائرية مع حوض زراعي</h1>
+    <p>منظور ثلاثي الأبعاد · المقاسات حسب المخطط</p>
+  </div>
+  <a class="link glass" href="guide.html">دليل القطع والمقاسات ←</a>
+</header>
+<nav class="dock glass" aria-label="التحكم بالمنظور">
+  <div class="seg" role="group" aria-label="زاوية النظر">
+    <button data-view="hero" aria-pressed="true">منظور</button>
+    <button data-view="eye" aria-pressed="false">مستوى العين</button>
+    <button data-view="detail" aria-pressed="false">تفاصيل</button>
+    <button data-view="top" aria-pressed="false">من فوق</button>
+  </div>
+  <span class="sep"></span>
+  <div class="seg" role="group" aria-label="الأجواء">
+    <button data-mode="studio" aria-pressed="true">استوديو</button>
+    <button data-mode="day" aria-pressed="false">نهاري</button>
+  </div>
+  <span class="sep"></span>
+  <button class="solo" id="dimBtn" aria-pressed="false">المقاسات</button>
+  <button class="solo" id="spinBtn" aria-pressed="false">تدوير</button>
+  <button class="solo" id="shotBtn">حفظ صورة</button>
+</nav>
+<div id="hint">اسحب للتدوير · قرّب بالعجلة أو بإصبعين</div>
+<div id="loading"><div><i></i>جاري تجهيز المشهد…</div></div>
+
+<script type="module">
+import * as THREE from 'three';
+import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
+import {RoomEnvironment} from 'three/addons/environments/RoomEnvironment.js';
+import {CSS2DRenderer, CSS2DObject} from 'three/addons/renderers/CSS2DRenderer.js';
+import {mergeVertices, mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
+
+// All sizes in metres, taken from the drawing (cm / 100).
+const S = {
+  sofaR: 1.30, seatIn: 0.75, backIn: 0.60, plinthIn: 0.62, plinthOut: 1.25,
+  plinthTop: 0.08, seatBaseTop: 0.30, seatTop: 0.42, backTop: 0.75, rim: 0.85, soil: 0.79,
+  modules: 12, rug: 0.012, rugR: 2.4,
+};
+
+// ------------------------------------------------------------ helpers
+const rng = (s => () => { s = s + 0x6D2B79F5 | 0; let t = Math.imul(s ^ s >>> 15, 1 | s); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; })(20261110);
+const R = (a, b) => a + (b - a) * rng();
+const clamp = THREE.MathUtils.clamp;
+const deg = THREE.MathUtils.degToRad;
+const isSmall = Math.min(innerWidth, innerHeight) < 700 || /Mobi|Android/i.test(navigator.userAgent);
+
+const stage = document.getElementById('stage');
+const renderer = new THREE.WebGLRenderer({antialias: true});
+renderer.setPixelRatio(Math.min(devicePixelRatio, isSmall ? 1.6 : 1.75));
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.0;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFShadowMap;
+renderer.shadowMap.autoUpdate = false; renderer.shadowMap.needsUpdate = true; // static scene: bake shadows once
+let dirty = true; // render only when something changes
+stage.appendChild(renderer.domElement);
+const maxAniso = renderer.capabilities.getMaxAnisotropy();
+
+const labels = new CSS2DRenderer();
+labels.domElement.style.cssText = 'position:absolute;inset:0;pointer-events:none'; labels.domElement.dir = 'ltr';
+stage.appendChild(labels.domElement);
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(30, 1, 0.05, 80);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true; controls.dampingFactor = 0.07;
+controls.minDistance = 1.3; controls.maxDistance = 26;
+controls.maxPolarAngle = deg(86);
+controls.autoRotateSpeed = 0.7;
+
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+
+// ------------------------------------------------------------ procedural textures
+function canvas(w, h){ const c = document.createElement('canvas'); c.width = w; c.height = h; return [c, c.getContext('2d')]; }
+function tex(c, {srgb = true, repeat = [1, 1]} = {}){
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
+  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(...repeat); t.anisotropy = maxAniso;
+  return t;
+}
+function wrapDraw(size, x, y, pad, fn){ // draw near edges again on the far side so the texture tiles
+  for (const ox of [-size, 0, size]) for (const oy of [-size, 0, size]){
+    if (x + ox < -pad || x + ox > size + pad || y + oy < -pad || y + oy > size + pad) continue;
+    fn(x + ox, y + oy);
+  }
+}
+function grain(x, w, h, amt){
+  const d = x.getImageData(0, 0, w, h), a = d.data;
+  for (let i = 0; i < a.length; i += 4){ const n = (rng() - 0.5) * amt; a[i] += n; a[i+1] += n; a[i+2] += n; }
+  x.putImageData(d, 0, 0);
+}
+
+// boucle / woven bump for upholstery
+function boucleBump(){
+  const N = 512, [c, x] = canvas(N, N);
+  x.fillStyle = '#808080'; x.fillRect(0, 0, N, N);
+  for (let i = 0; i < 9000; i++){
+    const px = R(0, N), py = R(0, N), r = R(1.6, 4), g = Math.round(R(55, 215)), a0 = R(0, 6.28);
+    x.strokeStyle = `rgba(${g},${g},${g},${R(.35, .85).toFixed(2)})`; x.lineWidth = R(1.3, 2.6);
+    wrapDraw(N, px, py, 8, (X, Y) => { x.beginPath(); x.arc(X, Y, r, a0, a0 + R(3.5, 6.28)); x.stroke(); });
+  }
+  return tex(c, {srgb: false});
+}
+// fine weave for poufs (tighter fabric)
+function weaveBump(){
+  const N = 256, [c, x] = canvas(N, N);
+  for (let y = 0; y < N; y++) for (let X = 0; X < N; X++){
+    const v = 128 + 40 * Math.sin(X * Math.PI / 2) * Math.sin(y * Math.PI / 2 + (X >> 2) % 2 * Math.PI) + (rng() - .5) * 50;
+    x.fillStyle = `rgb(${v|0},${v|0},${v|0})`; x.fillRect(X, y, 1, 1);
+  }
+  return tex(c, {srgb: false});
+}
+function oakTex(){
+  const W = 512, H = 1024, [c, x] = canvas(W, H);
+  const g = x.createLinearGradient(0, 0, W, 0); g.addColorStop(0, '#caa774'); g.addColorStop(.5, '#d4b282'); g.addColorStop(1, '#c6a06c');
+  x.fillStyle = g; x.fillRect(0, 0, W, H);
+  for (let i = 0; i < 230; i++){
+    let px = R(0, W); const w = R(.6, 3.5), dark = rng() < .55;
+    x.strokeStyle = dark ? `rgba(122,84,44,${R(.12, .38).toFixed(2)})` : `rgba(236,214,174,${R(.1, .3).toFixed(2)})`; x.lineWidth = w;
+    x.beginPath(); x.moveTo(px, -10);
+    const f = R(.002, .008), amp = R(2, 14), ph = R(0, 6);
+    for (let y = 0; y <= H + 10; y += 16) x.lineTo(px + Math.sin(y * f + ph) * amp, y);
+    x.stroke();
+  }
+  for (let i = 0; i < 900; i++){ x.fillStyle = `rgba(110,74,40,${R(.08, .25).toFixed(2)})`; x.fillRect(R(0, W), R(0, H), R(1, 2), R(3, 9)); }
+  grain(x, W, H, 10);
+  return tex(c);
+}
+function barkTex(){
+  const W = 256, H = 512, [c, x] = canvas(W, H);
+  x.fillStyle = '#6f6253'; x.fillRect(0, 0, W, H);
+  for (let i = 0; i < 260; i++){
+    const px = R(0, W), l = R(30, 160), py = R(-40, H);
+    x.strokeStyle = rng() < .5 ? `rgba(48,40,32,${R(.25, .6).toFixed(2)})` : `rgba(150,138,118,${R(.2, .45).toFixed(2)})`;
+    x.lineWidth = R(1, 4); x.beginPath(); x.moveTo(px, py); x.bezierCurveTo(px + R(-6, 6), py + l * .3, px + R(-6, 6), py + l * .6, px + R(-4, 4), py + l); x.stroke();
+  }
+  grain(x, W, H, 18);
+  return tex(c, {repeat: [2, 3]});
+}
+function leafTex(){ // a small sprig: twig + 11 leaves, transparent background
+  const N = 256, [c, x] = canvas(N, N);
+  const greens = ['#2f5a22', '#3a6a28', '#467632', '#2a521e', '#557f38'];
+  x.strokeStyle = '#5b5a34'; x.lineWidth = 3; x.beginPath(); x.moveTo(128, 254); x.quadraticCurveTo(122, 140, 130, 26); x.stroke();
+  const leaf = (px, py, ang, len, wid) => {
+    x.save(); x.translate(px, py); x.rotate(ang);
+    const g = x.createLinearGradient(0, 0, 0, -len), col = greens[(rng() * greens.length) | 0];
+    g.addColorStop(0, col); g.addColorStop(1, '#6f9a4a');
+    x.fillStyle = g; x.beginPath(); x.moveTo(0, 0);
+    x.bezierCurveTo(wid, -len * .25, wid * .8, -len * .75, 0, -len);
+    x.bezierCurveTo(-wid * .8, -len * .75, -wid, -len * .25, 0, 0); x.fill();
+    x.strokeStyle = 'rgba(205,230,160,.35)'; x.lineWidth = 1.2; x.beginPath(); x.moveTo(0, -2); x.lineTo(0, -len * .92); x.stroke();
+    x.restore();
+  };
+  for (let i = 0; i < 10; i++){
+    const t = i / 10, py = 236 - t * 200, side = i % 2 ? 1 : -1;
+    leaf(126 + side * 2, py, side * deg(R(42, 62)), 74 - t * 26 + R(-6, 6), 21 - t * 4);
+  }
+  leaf(130, 30, R(-.15, .15), 50, 17);
+  return tex(c);
+}
+function frondTex(){ // fern frond: rachis + pinnae
+  const W = 128, H = 512, [c, x] = canvas(W, H);
+  x.strokeStyle = '#4f6d2c'; x.lineWidth = 3; x.beginPath(); x.moveTo(64, H); x.lineTo(64, 4); x.stroke();
+  for (let t = .06; t < .985; t += .028){
+    const py = H - t * H, len = 58 * Math.pow(Math.sin(Math.PI * Math.min(1, t * 1.08)), .55) * (1 - .3 * t);
+    for (const s of [-1, 1]){
+      x.save(); x.translate(64, py); x.rotate(s * deg(68 - t * 18));
+      x.fillStyle = rng() < .5 ? '#517f33' : '#5f8f3d';
+      x.beginPath(); x.ellipse(0, -len / 2, Math.max(2, len * .14), len / 2, 0, 0, Math.PI * 2); x.fill();
+      x.restore();
+    }
+  }
+  return tex(c);
+}
+function mulchTex(){
+  const N = 256, [c, x] = canvas(N, N);
+  x.fillStyle = '#3b2c20'; x.fillRect(0, 0, N, N);
+  for (let i = 0; i < 1400; i++){ x.fillStyle = `rgba(${R(70, 120)|0},${R(48, 80)|0},${R(30, 50)|0},${R(.4, .9).toFixed(2)})`; x.fillRect(R(0, N), R(0, N), R(2, 9), R(1, 3)); }
+  grain(x, N, N, 20);
+  return tex(c, {repeat: [3, 3]});
+}
+function blob(x, cx, cy, r, color, alpha, stretch = 1, rot = 0){
+  const k = 9, pts = [];
+  for (let i = 0; i < k; i++){ const a = i / k * Math.PI * 2, rr = r * R(.65, 1.2); pts.push([Math.cos(a) * rr * stretch, Math.sin(a) * rr]); }
+  x.save(); x.translate(cx, cy); x.rotate(rot); x.globalAlpha = alpha; x.fillStyle = color; x.beginPath();
+  for (let i = 0; i <= k; i++){
+    const p = pts[i % k], q = pts[(i + 1) % k], m = [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2];
+    if (i === 0) x.moveTo(m[0], m[1]); else x.quadraticCurveTo(p[0], p[1], m[0], m[1]);
+  }
+  x.fill(); x.restore();
+}
+function rugTex(){
+  const N = 2048, [c, x] = canvas(N, N);
+  x.fillStyle = '#cdc7b8'; x.fillRect(0, 0, N, N);
+  const cols = ['#8f9f88', '#b8b5a9', '#b09868', '#e2dccb', '#7a8a79', '#c2b38f', '#9fae96', '#d8cfba'];
+  x.filter = 'blur(6px)';
+  for (let i = 0; i < 70; i++) blob(x, R(0, N), R(0, N), R(110, 380), cols[i % cols.length], R(.55, .9), R(1.2, 2.6), R(0, 3.14));
+  x.filter = 'blur(3px)';
+  for (let i = 0; i < 16; i++){ // flowing bands
+    x.strokeStyle = cols[(i * 3) % cols.length]; x.globalAlpha = R(.35, .6); x.lineWidth = R(30, 90); x.lineCap = 'round';
+    x.beginPath(); const y0 = R(0, N); x.moveTo(-50, y0);
+    x.bezierCurveTo(N * .3, y0 + R(-500, 500), N * .7, y0 + R(-500, 500), N + 50, y0 + R(-300, 300)); x.stroke();
+  }
+  x.filter = 'none'; x.globalAlpha = 1;
+  grain(x, N, N, 16);
+  x.strokeStyle = 'rgba(150,143,126,.75)'; x.lineWidth = 16; x.beginPath(); x.arc(N / 2, N / 2, N / 2 - 10, 0, Math.PI * 2); x.stroke();
+  return tex(c, {repeat: [1, 1]});
+}
+function marbleTex(){
+  const N = 1024, [c, x] = canvas(N, N);
+  x.fillStyle = '#ece6db'; x.fillRect(0, 0, N, N);
+  x.filter = 'blur(30px)';
+  for (let i = 0; i < 40; i++) blob(x, R(0, N), R(0, N), R(60, 220), rng() < .5 ? '#ddd3c2' : '#f7f3ec', R(.3, .6));
+  x.filter = 'blur(1.2px)';
+  for (let i = 0; i < 9; i++){
+    x.strokeStyle = `rgba(150,138,120,${R(.12, .3).toFixed(2)})`; x.lineWidth = R(.8, 2.4);
+    x.beginPath(); const y0 = R(0, N); x.moveTo(0, y0);
+    x.bezierCurveTo(N * .35, y0 + R(-300, 300), N * .65, y0 + R(-300, 300), N, y0 + R(-200, 200)); x.stroke();
+  }
+  x.filter = 'none'; grain(x, N, N, 6);
+  x.strokeStyle = '#cfc5b3'; x.lineWidth = 4; x.strokeRect(0, 0, N, N);
+  return tex(c);
+}
+function radialTex(stops, N = 512){
+  const [c, x] = canvas(N, N), g = x.createRadialGradient(N / 2, N / 2, 0, N / 2, N / 2, N / 2);
+  for (const [o, col] of stops) g.addColorStop(o, col);
+  x.fillStyle = g; x.fillRect(0, 0, N, N);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.NoColorSpace; return t;
+}
+// pouf fabric patterns in lathe UV space (u around, v from bottom centre to top centre)
+function poufPattern(kind){
+  const W = 1024, H = 512, [c, x] = canvas(W, H);
+  if (kind === 'patch'){ // orange body, sage patch spilling over the top
+    x.fillStyle = '#dd5a1b'; x.fillRect(0, 0, W, H);
+    x.filter = 'blur(2px)';
+    for (const cx of [0, W]) blob(x, cx + 260, 40, 210, '#a7b48d', 1, 2.4, .05);
+    blob(x, 760, 30, 150, '#a7b48d', 1, 2.2, -.05);
+    blob(x, 560, 70, 90, '#d9c48a', .9, 2.0, .1);
+  } else { // mixed: orange / sage / sand / yellow patches
+    x.fillStyle = '#b9bb88'; x.fillRect(0, 0, W, H);
+    x.filter = 'blur(2px)';
+    const P = [['#dc5a1c', 210, 330, 260], ['#97a87c', 640, 250, 230], ['#e6a320', 470, 120, 140], ['#dc5a1c', 860, 360, 200],
+               ['#a9b88a', 120, 90, 170], ['#d9c27e', 780, 90, 170], ['#e46a24', 380, 380, 150]];
+    for (const [col, px, py, r] of P) for (const ox of [-W, 0, W]) blob(x, px + ox, py, r, col, 1, 1.7, R(-.4, .4));
+  }
+  x.filter = 'none'; grain(x, W, H, 8);
+  return tex(c);
+}
+
+const T = {boucle: boucleBump(), weave: weaveBump(), oak: oakTex(), bark: barkTex(), leaf: leafTex(), frond: frondTex(), mulch: mulchTex()};
+
+// ------------------------------------------------------------ materials
+const fabric = (hex, o = {}) => new THREE.MeshPhysicalMaterial({
+  color: hex, roughness: .95, sheen: .45, sheenRoughness: .7, sheenColor: new THREE.Color(o.sheen || '#e9e1d2'),
+  bumpMap: o.bump || T.boucle, bumpScale: o.bumpScale ?? .9, map: o.map || null,
+});
+const M = {
+  sofa: fabric('#cbc3b4'),
+  oak: new THREE.MeshStandardMaterial({map: T.oak, roughness: .55, metalness: 0}),
+  plinth: new THREE.MeshStandardMaterial({color: '#b9945f', map: T.oak, roughness: .5}),
+  planter: new THREE.MeshStandardMaterial({color: '#cfc8bb', roughness: .55}),
+  soil: new THREE.MeshStandardMaterial({map: T.mulch, roughness: 1}),
+  bark: new THREE.MeshStandardMaterial({map: T.bark, roughness: .9}),
+  leaf: new THREE.MeshStandardMaterial({map: T.leaf, alphaTest: .45, side: THREE.DoubleSide, roughness: .7}),
+  frond: new THREE.MeshStandardMaterial({map: T.frond, alphaTest: .4, side: THREE.DoubleSide, roughness: .7}),
+  pot: new THREE.MeshStandardMaterial({color: '#d6c8ae', roughness: .55}),
+};
+const leafDepth = new THREE.MeshDepthMaterial({depthPacking: THREE.RGBADepthPacking, map: T.leaf, alphaTest: .45});
+const frondDepth = new THREE.MeshDepthMaterial({depthPacking: THREE.RGBADepthPacking, map: T.frond, alphaTest: .4});
+
+// ------------------------------------------------------------ geometry builders
+// Rounded box with extra rings near the edges, optional deform, triplanar UVs.
+function roundedBox(w, h, d, r, seg, deform, tile = .2){
+  const c = 5, [nx, ny, nz] = seg;
+  r = Math.min(r, w / 2 - 1e-4, h / 2 - 1e-4, d / 2 - 1e-4);
+  const axis = (n, half) => i => i <= c ? -half + r * (i / c) : i >= n - c ? half - r * ((n - i) / c) : -half + r + (2 * half - 2 * r) * ((i - c) / (n - 2 * c));
+  const fx = axis(nx, w / 2), fy = axis(ny, h / 2), fz = axis(nz, d / 2), e = [w / 2 - r, h / 2 - r, d / 2 - r];
+  let g = new THREE.BoxGeometry(1, 1, 1, nx, ny, nz);
+  g.deleteAttribute('normal'); g.deleteAttribute('uv');
+  const p = g.attributes.position, v = new THREE.Vector3(), q = new THREE.Vector3();
+  for (let i = 0; i < p.count; i++){
+    v.set(fx(Math.round((p.getX(i) + .5) * nx)), fy(Math.round((p.getY(i) + .5) * ny)), fz(Math.round((p.getZ(i) + .5) * nz)));
+    q.set(clamp(v.x, -e[0], e[0]), clamp(v.y, -e[1], e[1]), clamp(v.z, -e[2], e[2]));
+    v.sub(q).normalize().multiplyScalar(r).add(q);
+    if (deform) deform(v, w / 2, h / 2, d / 2);
+    p.setXYZ(i, v.x, v.y, v.z);
+  }
+  g = mergeVertices(g, 1e-6);
+  g.computeVertexNormals();
+  const n = g.attributes.normal, P = g.attributes.position, uv = new Float32Array(P.count * 2);
+  for (let i = 0; i < P.count; i++){
+    const ax = Math.abs(n.getX(i)), ay = Math.abs(n.getY(i)), az = Math.abs(n.getZ(i));
+    const [a, b] = ay >= ax && ay >= az ? [P.getX(i), P.getZ(i)] : az >= ax ? [P.getX(i), P.getY(i)] : [P.getZ(i), P.getY(i)];
+    uv[i * 2] = a / tile; uv[i * 2 + 1] = b / tile;
+  }
+  g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+  return g;
+}
+// Bend a box built along +x into an arc around the Y axis (local z = radial offset from radius Rm).
+function bend(g, Rm){
+  const p = g.attributes.position;
+  for (let i = 0; i < p.count; i++){
+    const th = p.getX(i) / Rm, r = Rm + p.getZ(i);
+    p.setXYZ(i, r * Math.sin(th), p.getY(i), r * Math.cos(th));
+  }
+  g.computeVertexNormals();
+  return g;
+}
+// Closed lathe profile with rounded corners, resampled evenly so UV v follows arc length.
+function profile(rIn, rOut, y0, y1, rb, rt, dome = 0){
+  const pts = [], arc = (cx, cy, rad, a0, a1) => { for (let i = 0; i <= 8; i++){ const a = a0 + (a1 - a0) * i / 8; pts.push([cx + Math.cos(a) * rad, cy + Math.sin(a) * rad]); } };
+  if (rIn > 0) arc(rIn + rb, y0 + rb, rb, Math.PI, Math.PI * 1.5); else pts.push([0, y0]);
+  arc(rOut - rb, y0 + rb, rb, -Math.PI / 2, 0);
+  arc(rOut - rt, y1 - rt, rt, 0, Math.PI / 2);
+  if (rIn > 0){ arc(rIn + rt, y1 - rt, rt, Math.PI / 2, Math.PI); pts.push(pts[0]); } else pts.push([0, y1]);
+  for (const p of pts) if (p[1] > y1 - rt - 1e-6 && dome) p[1] += dome * (1 - Math.pow(p[0] / rOut, 2));
+  // resample by arc length
+  const L = [0]; for (let i = 1; i < pts.length; i++) L.push(L[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
+  const total = L[L.length - 1], n = Math.max(20, Math.round(total / .02)), out = [];
+  for (let k = 0, j = 0; k <= n; k++){
+    const s = total * k / n; while (j < L.length - 2 && L[j + 1] < s) j++;
+    const t = (s - L[j]) / Math.max(1e-9, L[j + 1] - L[j]);
+    out.push(new THREE.Vector2(pts[j][0] + (pts[j + 1][0] - pts[j][0]) * t, pts[j][1] + (pts[j + 1][1] - pts[j][1]) * t));
+  }
+  return out;
+}
+const lathe = (pts, seg = 96) => new THREE.LatheGeometry(pts, seg);
+function planarUV(g, tile){ const p = g.attributes.position, uv = g.attributes.uv; for (let i = 0; i < p.count; i++) uv.setXY(i, p.getX(i) / tile, p.getZ(i) / tile); return g; }
+function mesh(g, m, {cast = true, receive = true} = {}){ const o = new THREE.Mesh(g, m); o.castShadow = cast; o.receiveShadow = receive; return o; }
+
+// ------------------------------------------------------------ the unit
+const unit = new THREE.Group(); unit.position.y = S.rug; scene.add(unit);
+const STEP = Math.PI * 2 / S.modules, GAP = .007;
+
+// oak plinth, recessed under the seats
+unit.add(mesh(lathe(profile(S.plinthIn, S.plinthOut, 0, S.plinthTop, .003, .003), 96), M.plinth));
+
+// seat base + cushion + backrest, one shared geometry per piece, rotated 12 times
+const arcLen = Rm => Rm * STEP - GAP;
+const seatRm = (S.seatIn + S.sofaR) / 2, seatD = S.sofaR - S.seatIn;
+const baseGeo = bend(roundedBox(arcLen(seatRm), S.seatBaseTop - S.plinthTop, seatD, .03, [24, 12, 16], (v, hw, hh, hd) => {
+  if (v.z > 0) v.z += .008 * (1 - (v.x / hw) ** 2) * (1 - (v.y / hh) ** 2) * (v.z / hd);
+}), seatRm);
+baseGeo.translate(0, (S.plinthTop + S.seatBaseTop) / 2, 0);
+const cushRm = seatRm, cushD = seatD - .01;
+const cushGeo = bend(roundedBox(arcLen(cushRm) + .002, S.seatTop - S.seatBaseTop + .005, cushD, .05, [28, 12, 20], (v, hw, hh, hd) => {
+  const fx = Math.max(0, 1 - (v.x / hw) ** 2), fz = Math.max(0, 1 - (v.z / hd) ** 2);
+  if (v.y > 0) v.y += .016 * fx * fz * (v.y / hh);
+  if (v.z > 0) v.z += .006 * fx * Math.max(0, 1 - (v.y / hh) ** 2) * (v.z / hd);
+}), cushRm);
+cushGeo.translate(0, (S.seatBaseTop + S.seatTop) / 2 - .002, 0);
+const backRm = (S.backIn + S.seatIn) / 2, backD = S.seatIn - S.backIn;
+const backGeo = bend(roundedBox(arcLen(backRm), S.backTop - S.plinthTop, backD, .06, [20, 24, 12], (v, hw, hh, hd) => {
+  if (v.z > 0) v.z += .02 * Math.max(0, 1 - (v.x / hw) ** 2) * Math.max(0, 1 - (v.y / hh) ** 4) * (v.z / hd);
+}), backRm);
+backGeo.translate(0, (S.plinthTop + S.backTop) / 2, 0);
+for (let k = 0; k < S.modules; k++){
+  const a = (k + .5) * STEP;
+  for (const g of [baseGeo, cushGeo, backGeo]){ const o = mesh(g, M.sofa); o.rotation.y = a; unit.add(o); }
+}
+
+// planter rim (fibreglass) and soil
+unit.add(mesh(lathe(profile(.57, .598, .62, S.rim, .004, .012), 128), M.planter));
+const soil = mesh(new THREE.CircleGeometry(.575, 64), M.soil, {cast: false}); soil.rotation.x = -Math.PI / 2; soil.position.y = S.soil; unit.add(soil);
+
+// throw cushions leaning on the backrest
+const pillowGeo = roundedBox(.46, .46, .2, .075, [20, 20, 12], (v, hw, hh) => {
+  const m = Math.max(Math.abs(v.x) / hw, Math.abs(v.y) / hh);
+  v.z *= 1 - .62 * Math.pow(m, 2.4);
+  v.x *= 1 - .04 * (1 - (v.y / hh) ** 2); v.y *= 1 - .04 * (1 - (v.x / hw) ** 2);
+}, .25);
+const pillowCols = {yellow: fabric('#dba52b', {bump: T.weave, bumpScale: 1.2, sheen: '#ffe9b0'}), sage: fabric('#9eaa89', {bump: T.weave, bumpScale: 1.2, sheen: '#eef3df'})};
+for (const [ang, col, roll] of [[24, 'yellow', .05], [41, 'sage', -.04], [57, 'sage', .06], [118, 'yellow', -.05], [-150, 'sage', .03], [-165, 'yellow', -.06]]){
+  const o = mesh(pillowGeo, pillowCols[col]), th = deg(ang), rr = S.seatIn + .11;
+  o.position.set(rr * Math.sin(th), S.seatTop + .2, rr * Math.cos(th));
+  o.rotation.set(-.4, th, roll, 'YXZ');
+  unit.add(o);
+}
+
+// ------------------------------------------------------------ tree
+function taperTube(points, r0, r1, segs = 18, radial = 9){
+  const curve = new THREE.CatmullRomCurve3(points), g = new THREE.TubeGeometry(curve, segs, 1, radial, false);
+  const p = g.attributes.position, P = new THREE.Vector3(), v = new THREE.Vector3();
+  for (let i = 0; i <= segs; i++){
+    curve.getPointAt(i / segs, P); const rr = THREE.MathUtils.lerp(r0, r1, Math.pow(i / segs, .85));
+    for (let j = 0; j <= radial; j++){ const k = i * (radial + 1) + j; v.fromBufferAttribute(p, k).sub(P).multiplyScalar(rr).add(P); p.setXYZ(k, v.x, v.y, v.z); }
+  }
+  return g;
+}
+const V = (x, y, z) => new THREE.Vector3(x, y, z);
+const branches = [], fork = V(.015, 1.32, 0);
+branches.push(taperTube([V(0, S.soil - .05, 0), V(.03, 1.0, .01), V(-.01, 1.18, .02), fork], .075, .05, 20, 12));
+const limbEnds = [];
+for (let k = 0; k < 5; k++){
+  const a = k / 5 * Math.PI * 2 + R(-.3, .3), d = R(.34, .44), h = R(1.74, 1.9);
+  const end = V(Math.cos(a) * d, h, Math.sin(a) * d);
+  branches.push(taperTube([fork, V(Math.cos(a) * d * .35, 1.5 + R(0, .05), Math.sin(a) * d * .35), end], .03, .012));
+  limbEnds.push(end);
+}
+const topEnd = V(.02, 2.05, -.01); limbEnds.push(topEnd);
+branches.push(taperTube([fork, V(0, 1.7, .02), topEnd], .028, .01));
+
+// foliage blobs that make up the crown (top of tree ≈ 2.33 m, width ≈ 1.8 m)
+const blobs = [];
+for (let i = 0; i < 11; i++){ const a = i / 11 * Math.PI * 2 + R(-.2, .2), d = R(.48, .62); blobs.push([V(Math.cos(a) * d, 1.84 + R(-.1, .1), Math.sin(a) * d), R(.21, .32)]); }
+for (let i = 0; i < 6; i++){ const a = i / 6 * Math.PI * 2 + .4, d = R(.26, .34); blobs.push([V(Math.cos(a) * d, 2.06 + R(-.04, .04), Math.sin(a) * d), R(.26, .3)]); }
+for (let i = 0; i < 4; i++){ const a = i / 4 * Math.PI * 2 + .2; blobs.push([V(Math.cos(a) * .32, 1.68, Math.sin(a) * .32), .24]); }
+blobs.push([V(0, 2.1, 0), .25]);
+for (const [c] of blobs){ // twig from the nearest limb end
+  let best = limbEnds[0]; for (const e of limbEnds) if (e.distanceTo(c) < best.distanceTo(c)) best = e;
+  branches.push(taperTube([best, best.clone().lerp(c, .5).add(V(0, .04, 0)), c], .013, .005, 10, 6));
+}
+unit.add(mesh(mergeGeometries(branches), M.bark));
+
+// all leaf cards in one instanced mesh
+const leafGeo = new THREE.PlaneGeometry(1, 1); leafGeo.translate(0, .5, 0);
+const leafT = [];
+const tmpQ = new THREE.Quaternion(), tmpM = new THREE.Matrix4(), Y = V(0, 1, 0), spin = new THREE.Quaternion();
+function addLeaf(pos, up, size, shade){
+  tmpQ.setFromUnitVectors(Y, up.normalize()); spin.setFromAxisAngle(Y, R(0, Math.PI * 2)); tmpQ.multiply(spin);
+  tmpM.compose(pos, tmpQ, V(size * R(.85, 1.1), size, 1));
+  leafT.push([tmpM.clone(), shade]);
+}
+const crownC = V(0, 1.9, 0);
+for (const [c, br] of blobs){
+  const n = Math.round(200 * (br / .3) ** 2);
+  for (let i = 0; i < n; i++){
+    const dir = V(R(-1, 1), R(-1, 1), R(-1, 1)); if (dir.lengthSq() > 1 || dir.lengthSq() < .01){ i--; continue; }
+    dir.normalize();
+    const pos = c.clone().add(dir.clone().multiplyScalar(br * (.35 + .65 * Math.sqrt(rng()))).multiply(V(1, .78, 1)));
+    const e = Math.hypot(pos.x / .95, (pos.y - crownC.y) / .45, pos.z / .95);
+    const shade = clamp(.28 + .7 * (e - .25) / .75, .25, .95) * (1 + .15 * (pos.y - crownC.y));
+    addLeaf(pos, dir.clone().add(V(R(-.4, .4), .45, R(-.4, .4))), R(.17, .25), shade);
+  }
+}
+// low leafy planting around the trunk
+for (let i = 0; i < 520; i++){
+  const a = R(0, Math.PI * 2), d = R(.1, .56), pos = V(Math.cos(a) * d, S.soil + R(0, .16) * (1 - d * .6), Math.sin(a) * d);
+  addLeaf(pos, V(Math.cos(a) * R(.3, 1), R(.7, 1.3), Math.sin(a) * R(.3, 1)), R(.15, .22), R(.45, .85));
+}
+
+// ------------------------------------------------------------ fern fronds spilling over the rim
+const frondGeo = new THREE.PlaneGeometry(.17, 1, 1, 12);
+{ const p = frondGeo.attributes.position;
+  for (let i = 0; i < p.count; i++){ const s = p.getY(i) + .5; p.setXYZ(i, p.getX(i) * (1 - .2 * s), .95 * s - .78 * s * s, .9 * s); }
+  frondGeo.computeVertexNormals(); }
+const fronds = [];
+for (let i = 0; i < 95; i++){
+  const a = R(0, Math.PI * 2), d = R(.08, .42), L = R(.36, .52);
+  const o = new THREE.Object3D(); o.position.set(Math.cos(a) * d, S.soil, Math.sin(a) * d);
+  o.rotation.set(0, Math.atan2(Math.cos(a), Math.sin(a)) + R(-.5, .5), 0); o.rotateX(R(-.25, .15)); o.rotateZ(R(-.2, .2));
+  o.scale.set(R(.85, 1.2), L, L); o.updateMatrix(); fronds.push(o.matrix.clone());
+}
+const frondMesh = new THREE.InstancedMesh(frondGeo, M.frond, fronds.length);
+fronds.forEach((m, i) => { frondMesh.setMatrixAt(i, m); frondMesh.setColorAt(i, new THREE.Color().setScalar(R(.6, 1))); });
+frondMesh.castShadow = frondMesh.receiveShadow = true; frondMesh.customDepthMaterial = frondDepth; unit.add(frondMesh);
+
+// ------------------------------------------------------------ poufs and side tables (around the unit)
+const poufMats = {
+  teal: fabric('#4b8377', {bump: T.weave, bumpScale: 1.3, sheen: '#dff3ee', map: null}),
+  orange: fabric('#dd5a1b', {bump: T.weave, bumpScale: 1.3, sheen: '#f5c6a6'}),
+  yellow: fabric('#e6a81e', {bump: T.weave, bumpScale: 1.3, sheen: '#f6dfa2'}),
+  patch: fabric('#ffffff', {bump: T.weave, bumpScale: 1.3, map: poufPattern('patch')}),
+  mixed: fabric('#ffffff', {bump: T.weave, bumpScale: 1.3, map: poufPattern('mixed')}),
+};
+for (const m of Object.values(poufMats)) if (m.bumpMap === T.weave){ m.bumpMap = T.weave.clone(); m.bumpMap.repeat.set(26, 8); m.bumpMap.needsUpdate = true; }
+const poufBase = lathe(profile(0, .24, 0, .03, .004, .006), 48);
+const poufBody = lathe(profile(0, .25, .03, .42, .035, .075, .012), 64);
+const tableTop = planarUV(lathe(profile(0, .2, .49, .52, .006, .009), 72), .5);
+const tableCol = new THREE.CylinderGeometry(.03, .03, .47, 32); tableCol.translate(0, .255, 0);
+const tableBase = planarUV(lathe(profile(0, .14, 0, .02, .004, .006), 64), .5);
+const potGeo = lathe(profile(0, .045, .52, .6, .008, .006), 40);
+const shadowTex = radialTex([[0, 'rgba(255,255,255,1)'], [.45, 'rgba(150,150,150,1)'], [1, 'rgba(0,0,0,1)']], 256);
+const contactMat = new THREE.MeshBasicMaterial({color: 0x000000, alphaMap: shadowTex, transparent: true, opacity: .55, depthWrite: false});
+function contact(x, z, size, op = .55){
+  const m = op === .55 ? contactMat : Object.assign(contactMat.clone(), {opacity: op});
+  const o = new THREE.Mesh(new THREE.PlaneGeometry(size, size), m); o.rotation.x = -Math.PI / 2; o.position.set(x, .0015, z); o.renderOrder = 1; return o;
+}
+const polar = (degA, r) => [r * Math.sin(deg(degA)), r * Math.cos(degA * Math.PI / 180)];
+const poufs = [['teal', -74, 1.84], ['mixed', -24, 1.78], ['patch', 12, 1.76], ['yellow', 50, 1.82], ['orange', 84, 1.8]];
+const tables = [[-98, 1.92], [-50, 1.88], [31, 1.86], [67, 2.08], [110, 1.9]];
+const poufPos = {};
+for (const [kind, a, r] of poufs){
+  const [x, z] = polar(a, r), g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = R(0, 6.28);
+  g.add(mesh(poufBase, M.oak), mesh(poufBody, poufMats[kind])); unit.add(g); unit.add(contact(x, z, .78));
+  poufPos[kind] = [x, z];
+}
+const tablePos = [];
+for (const [a, r] of tables){
+  const [x, z] = polar(a, r), g = new THREE.Group(); g.position.set(x, 0, z);
+  g.add(mesh(tableTop, M.oak), mesh(tableCol, M.oak), mesh(tableBase, M.oak), mesh(potGeo, M.pot));
+  unit.add(g); unit.add(contact(x, z, .5, .5)); tablePos.push([x, z]);
+  for (let i = 0; i < 26; i++){ // little potted plant
+    const aa = R(0, 6.28), dd = R(0, .03);
+    addLeaf(V(x + Math.cos(aa) * dd, .595, z + Math.sin(aa) * dd), V(Math.cos(aa) * R(.2, .8), 1, Math.sin(aa) * R(.2, .8)), R(.07, .1), R(.6, .95));
+  }
+}
+// soft contact shadow under the sofa ring
+const ringShadow = new THREE.Mesh(new THREE.CircleGeometry(1.5, 96), new THREE.MeshBasicMaterial({color: 0, transparent: true, depthWrite: false,
+  alphaMap: radialTex([[0, '#999'], [.8, '#999'], [.86, '#555'], [1, '#000']], 1024)}));
+ringShadow.rotation.x = -Math.PI / 2; ringShadow.position.y = .0015; ringShadow.renderOrder = 1; unit.add(ringShadow);
+
+const leafMesh = new THREE.InstancedMesh(leafGeo, M.leaf, leafT.length);
+leafT.forEach(([m, s], i) => {
+  leafMesh.setMatrixAt(i, m);
+  leafMesh.setColorAt(i, new THREE.Color(s * R(.9, 1.05), s * R(.95, 1.05), s * R(.85, 1)));
+});
+leafMesh.castShadow = leafMesh.receiveShadow = true; leafMesh.customDepthMaterial = leafDepth; unit.add(leafMesh);
+
+// ------------------------------------------------------------ rug and floor
+const rugTop = new THREE.MeshStandardMaterial({map: rugTex(), roughness: .98, bumpMap: T.weave.clone(), bumpScale: 1.6});
+rugTop.bumpMap.repeat.set(90, 90); rugTop.bumpMap.needsUpdate = true;
+const rugSide = new THREE.MeshStandardMaterial({color: '#bdb6a6', roughness: 1});
+const rug = new THREE.Mesh(new THREE.CylinderGeometry(S.rugR, S.rugR, S.rug, 160), [rugSide, rugTop, rugSide]);
+rug.position.y = S.rug / 2; rug.receiveShadow = true; scene.add(rug);
+
+const floorAlpha = radialTex([[0, '#fff'], [.3, '#fff'], [.75, '#555'], [1, '#000']]);
+const marble = marbleTex(); marble.repeat.set(36, 36);
+const floorMat = new THREE.MeshStandardMaterial({color: '#2a2826', roughness: .45, alphaMap: floorAlpha, transparent: true});
+const floor = new THREE.Mesh(new THREE.CircleGeometry(16, 128), floorMat);
+floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; floor.renderOrder = -1; scene.add(floor);
+
+// ------------------------------------------------------------ lights
+const key = new THREE.DirectionalLight(0xfff0de, 3);
+key.position.set(2.6, 6.4, 3.4); key.castShadow = true;
+const SM = isSmall ? 2048 : 4096; key.shadow.mapSize.set(SM, SM);
+Object.assign(key.shadow.camera, {left: -3.2, right: 3.2, top: 3.2, bottom: -3.2, near: 2, far: 14});
+key.shadow.bias = -.0003; key.shadow.normalBias = .02; key.shadow.radius = 3;
+scene.add(key);
+const fill = new THREE.DirectionalLight(0xe6edff, .6); fill.position.set(-4.5, 2.5, -2.5); scene.add(fill);
+const bounce = new THREE.HemisphereLight(0xfff6ea, 0x3a342e, .25); scene.add(bounce);
+
+const MODES = {
+  studio: {bg: '#0c0c0d', floor: '#2b2926', map: null, rough: .45, env: .3, key: 2.7, fill: .4, hemi: .12, exp: .88, dim: '#e9c46a'},
+  day:    {bg: '#ddd7cd', floor: '#f4efe6', map: marble, rough: .22, env: .6, key: 2.2, fill: .3, hemi: .22, exp: .8, dim: '#2c6fb0'},
+};
+function setMode(name){
+  const m = MODES[name];
+  scene.background = new THREE.Color(m.bg);
+  floorMat.color.set(m.floor); floorMat.map = m.map; floorMat.roughness = m.rough; floorMat.needsUpdate = true;
+  scene.environmentIntensity = m.env; key.intensity = m.key; fill.intensity = m.fill; bounce.intensity = m.hemi;
+  renderer.toneMappingExposure = m.exp; dimLine.material.color.set(m.dim);
+  document.body.classList.toggle('day', name === 'day');
+  document.documentElement.style.setProperty('--bg', m.bg);
+  document.querySelectorAll('[data-mode]').forEach(b => b.setAttribute('aria-pressed', b.dataset.mode === name));
+  dirty = true;
+}
+
+// ------------------------------------------------------------ measurements (from the drawing)
+const dims = new THREE.Group(); dims.visible = false; scene.add(dims);
+function tag(text, sub, x, y, z){
+  const el = document.createElement('div'); el.className = 'tag';
+  el.innerHTML = `<b></b><div>${text}${sub ? `<small>${sub}</small>` : ''}</div>`;
+  const o = new CSS2DObject(el); o.position.set(x, y + S.rug, z); dims.add(o); return o;
+}
+const dimLine = new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints([
+  V(-1.3, .03, 0), V(1.3, .03, 0), V(-1.3, .03, -.08), V(-1.3, .03, .08), V(1.3, .03, -.08), V(1.3, .03, .08),
+]), new THREE.LineBasicMaterial({color: '#e9c46a', depthTest: false}));
+dimLine.renderOrder = 10; dims.add(dimLine);
+tag('قطر الكنبة 260 سم', '12 وحدة × 30°', -1.0, .05, 0);
+{ const [x, z] = polar(-18, 1.24); tag('ارتفاع الجلوس 42 سم', 'عمق 55', x, .43, z); }
+{ const [x, z] = polar(-40, .7); tag('الظهر 75 سم', 'سماكة 15', x, .76, z); }
+{ const [x, z] = polar(8, .59); tag('حافة الحوض 85 سم', 'قطر الحوض 120', x, .86, z); }
+tag('الشجرة ≈ 233 سم', 'عرض التاج ≈ 180', 0, 2.36, 0);
+{ const [x, z] = poufPos.mixed; tag('بوف Ø50', 'ارتفاع 42', x, .45, z); }
+{ const [x, z] = tablePos[2]; tag('طاولة Ø40', 'ارتفاع 52', x, .53, z); }
+
+// ------------------------------------------------------------ views
+const VIEWS = {
+  hero:   {t: [0, .78, 0],      dir: [0, .4, 1],      span: [4.6, 3.3]},
+  eye:    {t: [0, .95, 0],      dir: [.45, .12, 1],   span: [4.4, 2.8]},
+  detail: {t: [.62, .5, 1.05],  dir: [.35, .32, 1],   span: [1.6, 1.1]},
+  top:    {t: [0, 0, 0],        dir: [0, 1, .02],     span: [5.0, 5.0]},
+};
+let tween = null, curView = 'hero';
+function fitDist(v){
+  const tv = Math.tan(deg(camera.fov) / 2), th = tv * camera.aspect, narrow = camera.aspect < .8 ? .9 : 1;
+  return Math.max(v.span[0] * narrow / 2 / th, v.span[1] / 2 / tv) * 1.12;
+}
+function goView(name, instant){
+  curView = name; const v = VIEWS[name];
+  const tgt = V(...v.t), pos = tgt.clone().add(V(...v.dir).normalize().multiplyScalar(fitDist(v)));
+  document.querySelectorAll('[data-view]').forEach(b => b.setAttribute('aria-pressed', b.dataset.view === name));
+  if (instant || matchMedia('(prefers-reduced-motion: reduce)').matches){ camera.position.copy(pos); controls.target.copy(tgt); controls.update(); tween = null; dirty = true; return; }
+  tween = {k: 0, p0: camera.position.clone(), t0: controls.target.clone(), p1: pos, t1: tgt};
+}
+
+// ------------------------------------------------------------ UI
+document.querySelectorAll('[data-view]').forEach(b => b.onclick = () => goView(b.dataset.view));
+document.querySelectorAll('[data-mode]').forEach(b => b.onclick = () => setMode(b.dataset.mode));
+const dimBtn = document.getElementById('dimBtn'), spinBtn = document.getElementById('spinBtn');
+function showDims(v){ dims.visible = v; dims.children.forEach(c => c.visible = v); dimBtn.setAttribute('aria-pressed', v); dirty = true; }
+showDims(false);
+dimBtn.onclick = () => showDims(!dims.visible);
+spinBtn.onclick = () => { controls.autoRotate = !controls.autoRotate; spinBtn.setAttribute('aria-pressed', controls.autoRotate); };
+document.getElementById('shotBtn').onclick = () => {
+  const pr = renderer.getPixelRatio(); renderer.setPixelRatio(Math.max(pr, 2.5));
+  resize(); renderer.render(scene, camera);
+  const url = renderer.domElement.toDataURL('image/png');
+  renderer.setPixelRatio(pr); resize();
+  const a = document.createElement('a'); a.href = url; a.download = 'circular-seating-unit-render.png'; a.click();
+};
+const hint = document.getElementById('hint');
+controls.addEventListener('start', () => { hint.style.opacity = 0; tween = null; });
+
+function resize(){
+  const w = stage.clientWidth, h = stage.clientHeight;
+  renderer.setSize(w, h); labels.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix(); dirty = true;
+}
+addEventListener('resize', () => { resize(); if (!tween) goView(curView, true); });
+
+resize();
+setMode('studio');
+goView('hero', true);
+const ease = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+let last = performance.now(), first = true;
+renderer.setAnimationLoop(now => {
+  const dt = Math.min(.05, (now - last) / 1000); last = now;
+  if (tween){
+    tween.k = Math.min(1, tween.k + dt / .9); const e = ease(tween.k);
+    camera.position.lerpVectors(tween.p0, tween.p1, e); controls.target.lerpVectors(tween.t0, tween.t1, e);
+    if (tween.k >= 1){ tween = null; dirty = true; }
+  }
+  const moved = controls.update();
+  if (!(moved || tween || dirty)) return;
+  dirty = false;
+  renderer.render(scene, camera); labels.render(scene, camera);
+  if (first){ first = false; const l = document.getElementById('loading'); l.style.opacity = 0; l.style.pointerEvents = 'none'; setTimeout(() => l.remove(), 700); setTimeout(() => hint.style.opacity = 0, 6000); }
+});
+</script>
+</body>
+</html>
